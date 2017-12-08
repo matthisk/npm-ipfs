@@ -67,5 +67,15 @@ async function addFile(fileJson) {
     return result;
 }
 
-ipfs.pubsub.subscribe(topic, (...args) => receiveMsg(...args).catch(err => console.error(err)));
+async function bootstrap() {
+    try {
+        await ipfs.files.mkdir('/npm-versions')
+    } catch (err) {
+        console.warn('Failed to make dir this probably means it already exists', err);
+    }
+}
+
+bootstrap().then(() => {
+    return ipfs.pubsub.subscribe(topic, receiveMsg);
+}).catch(err => console.error(err));
 
