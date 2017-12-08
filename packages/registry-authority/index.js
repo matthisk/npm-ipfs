@@ -18,7 +18,8 @@ async function receiveMsg(msg) {
         return
     }
 
-    const content = toMetadata(json)
+    const template = await getMetadataTemplate(json);
+    const content = toMetadata(template, json)
     const result = await addFile(content);
     
     console.log('Saved metadata to /npm-versions at hash', chalk.green(result.hash));
@@ -39,9 +40,33 @@ async function receiveMsg(msg) {
     console.log('Republished metadata under ipns', chalk.yellow(res.Name));
 }
 
-function toMetadata(input) {
+async function getMetadataTemplate(metadata) {
+    const p = `/npm-versions/${metadata.name}`;
+
+    let result;
+    try {
+        result = await ipfs.files.stat(p);
+    } catch (err) {
+        console.warn('failed file stat', err);
+        return Object.assign({}, metadataTemplate);
+    }
+
+    const re = await ipfs.files.read(p);
+    const bufs = [];
+
+    return new Promise((resolve, reject) => {
+        re.on('data', chunks => bufs.push(chunks));
+
+        re.on('error', err => reject(err));
+
+        re.on('end', () => {
+            resolve(JSON.parse(Buffer.concat(bufs)));
+        });
+    });
+}
+
+function toMetadata(template, input) {
     const version = input.version;
-    const template = Object.assign({}, metadataTemplate);
 
     template['_id'] = input.name;
     template.name = input.name;
@@ -52,7 +77,7 @@ function toMetadata(input) {
 } 
 
 async function addFile(fileJson) {
-    const content = new Buffer(JSON.stringify(fileJson, 4));
+    const content = new Buffer(JSON.stringify(fileJson, null, 4));
     const [result] = await ipfs.files.add(content);
 
     const from = `/ipfs/${result.hash}`;
@@ -71,7 +96,9 @@ async function bootstrap() {
     try {
         await ipfs.files.mkdir('/npm-versions')
     } catch (err) {
-        console.warn('Failed to make dir this probably means it already exists', err);
+        if (err.message.toLowerCase() !== 'file already exists') {
+            throw err;
+        }
     }
 }
 
