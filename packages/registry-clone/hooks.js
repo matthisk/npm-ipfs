@@ -1,4 +1,4 @@
-const config = require('../config');
+const config = require('./config');
 const ipfs = config.api;
 
 exports.tarball = function (data, cb) {
