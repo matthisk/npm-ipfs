@@ -36,13 +36,14 @@ async function main() {
   parsed['dist'] = {
     "shasum": hash.toString('hex'),
     "tarball": `http://localhost:8080/ipfs/${result[0].hash}`,
+    "_ipfs": result[0].hash,
   };
 
   await ipfs.pubsub.publish(TOPIC_ID, new Buffer(JSON.stringify(parsed)));
 }
 
 function shasum(stream) {
-  const hash = crypto.createHash('sha256');
+  const hash = crypto.createHash('sha1');
 
   const hashed = stream.pipe(hash);
   const result = [];

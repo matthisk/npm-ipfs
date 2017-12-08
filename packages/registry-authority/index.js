@@ -1,39 +1,71 @@
-var ipfsAPI = require('ipfs-api');
-var ipfs = ipfsAPI('localhost', '5001', {protocol: 'http'}); // leaving out the arguments will default to these values
+const ipfsAPI = require('ipfs-api');
+const fs = require('fs');
+const chalk = require('chalk');
+const ipfs = ipfsAPI('localhost', '5001', {protocol: 'http'}); // leaving out the arguments will default to these values
 
 const topic = 'npm';
 
+const metadataTemplate = JSON.parse(fs.readFileSync('./template.json'));
+
 async function receiveMsg(msg) {
+    console.log('Received message on pubsub channel', chalk.green(msg.from), chalk.red(msg.data.length));
+
     var json = undefined;
     try {
         json = JSON.parse(msg.data.toString());
     } catch (error){
-        console.log("JSON parse error:", msg.data.toString());
+        console.error("JSON parse error:", msg.data.toString());
         return
     }
-    //console.log(json);
 
-    const result = await addFile(json);
-    console.log(result);
+    const content = toMetadata(json)
+    const result = await addFile(content);
+    
+    console.log('Saved metadata to /npm-versions at hash', chalk.green(result.hash));
 
-    const res = await publish(result[1]);
-    console.log(res);
+    try {
+        await ipfs.files.get(json.dist['_ipfs']);
+    } catch (error) {
+        console.error('Failed to fetch tarball from maintainer with error', error);
+        // TODO: enqueue and try again
+    }
+
+    const dirMeta = await ipfs.files.stat('/npm-versions');
+
+    console.log('Now publishing to IPFS', chalk.yellow('please be patient'));
+    
+    const res = await ipfs.name.publish(dirMeta.Hash);
+    
+    console.log('Republished metadata under ipns', chalk.yellow(res.Name));
 }
+
+function toMetadata(input) {
+    const version = input.version;
+    const template = Object.assign({}, metadataTemplate);
+
+    template['_id'] = input.name;
+    template.name = input.name;
+    template['dist-tags'].latest = version;
+    template.versions[version] = input;
+
+    return template;
+} 
 
 async function addFile(fileJson) {
-    const files = [{
-        path: `/npm-versions/${fileJson.name}`,
-        content: new Buffer(JSON.stringify(fileJson)),
-    }];
+    const content = new Buffer(JSON.stringify(fileJson, 4));
+    const [result] = await ipfs.files.add(content);
 
-    return ipfs.files.add(files);
+    const from = `/ipfs/${result.hash}`;
+    const to = `/npm-versions/${fileJson.name}`;
+
+    try {
+        await ipfs.files.rm(to);
+    } catch(err) {}
+
+    await ipfs.files.cp([from, to]);
+
+    return result;
 }
 
-async function publish(multihash) {
-    //const multihash = await ipfs.files.stat('/npm-versions');
-    return ipfs.name.publish(multihash);
-}
-
-
-ipfs.pubsub.subscribe(topic, receiveMsg);
+ipfs.pubsub.subscribe(topic, (...args) => receiveMsg(...args).catch(err => console.error(err)));
 
