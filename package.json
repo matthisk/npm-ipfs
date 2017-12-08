@@ -1,0 +1,39 @@
+{
+  "name": "npm-ipfs",
+  "version": "1.0.0",
+  "description": "NPM on IPFS",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matthisk/npm-ipfs.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/matthisk/npm-ipfs/issues"
+  },
+  "homepage": "https://github.com/matthisk/npm-ipfs#readme",
+  "dependencies": {
+    "chalk": "^2.3.0",
+    "debug": "^3.1.0",
+    "dude": "^0.1.0",
+    "express": "^4.16.2",
+    "hillary": "0.0.1",
+    "http-proxy": "^1.16.2",
+    "ipfs-api": "^15.0.1",
+    "ipfs-blob-store": "^1.1.2",
+    "jesse": "0.0.1",
+    "orbit-db": "^0.17.3",
+    "registry-static": "^2.2.1",
+    "request": "^2.83.0",
+    "trump": "^0.1.0",
+    "xmlhttp-request": "^0.4.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.12.1"
+  }
+}
