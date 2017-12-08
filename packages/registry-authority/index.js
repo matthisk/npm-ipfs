@@ -1,11 +1,12 @@
 const ipfsAPI = require('ipfs-api');
 const fs = require('fs');
+const util = require('util');
 const chalk = require('chalk');
 const ipfs = ipfsAPI('localhost', '5001', {protocol: 'http'}); // leaving out the arguments will default to these values
 
-const topic = 'npm';
+const readFile = util.promisify(fs.readFile);
 
-const metadataTemplate = JSON.parse(fs.readFileSync('./template.json'));
+const topic = 'npm';
 
 async function receiveMsg(msg) {
     console.log('Received message on pubsub channel', chalk.green(msg.from), chalk.red(msg.data.length));
@@ -25,15 +26,15 @@ async function receiveMsg(msg) {
     console.log('Saved metadata to /npm-versions at hash', chalk.green(result.hash));
 
     try {
-        await ipfs.files.get(json.dist['_ipfs']);
+        await ipfs.pin.add(json.dist['_ipfs']);
     } catch (error) {
-        console.error('Failed to fetch tarball from maintainer with error', error);
+        console.error('Failed to pin tarball from maintainer with error', error);
         // TODO: enqueue and try again
     }
 
     const dirMeta = await ipfs.files.stat('/npm-versions');
 
-    console.log('Now publishing to IPFS', chalk.yellow('please be patient'));
+    console.log('Now publishing to IPNS', chalk.yellow('please be patient'));
     
     const res = await ipfs.name.publish(dirMeta.Hash);
     
@@ -47,8 +48,8 @@ async function getMetadataTemplate(metadata) {
     try {
         result = await ipfs.files.stat(p);
     } catch (err) {
-        console.warn('failed file stat', err);
-        return Object.assign({}, metadataTemplate);
+        if (err.message.toLowerCase() !== 'file does not exist') return Promise.reject(err);
+        return  JSON.parse(await readFile('./template.json'));
     }
 
     const re = await ipfs.files.read(p);
